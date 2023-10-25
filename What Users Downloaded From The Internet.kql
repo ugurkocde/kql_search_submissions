@@ -1,0 +1,4 @@
+DeviceFileEvents
+| where FileOriginUrl contains ""
+| extend ReferrerHost=tostring(parse_url(FileOriginReferrerUrl).Host)
+| summarize count(), any(FileName) by ReferrerHost 
