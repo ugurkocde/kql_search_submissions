@@ -1,0 +1,8 @@
+// https://support.microsoft.com/en-us/office/data-security-and-python-in-excel-33cc88a4-4a87-485e-9ff9-f35958278327
+// https://github.com/tsale/Sigma_rules/blob/main/MISC/pythonfunctionwarnings_disabled.yml
+imProcess
+| where TimeGenerated > ago(1h)
+| where TargetProcessName endswith "reg.exe" or TargetProcessName endswith "powershell.exe"
+| where CommandLine has_all("software\\policies\\microsoft\\office\\", "\\excel\\security", "pythonfunctionwarnings*0")
+| where CommandLine has_all ("reg", "add") or CommandLine contains 'Set-ItemProperty'
+| project-reorder TargetProcessName, CommandLine, ActingProcessName

@@ -1,0 +1,19 @@
+let DuplicateFInderUPN = IdentityInfo
+| summarize arg_max(Timestamp,*) by AccountUpn
+| summarize countUPN = dcount(AccountUpn) by AccountDisplayName
+| where countUPN > 1;
+let DuplicateDisplayName = IdentityInfo
+| summarize arg_max(Timestamp,*) by AccountUpn
+| join kind=inner DuplicateFInderUPN on AccountDisplayName
+| order by AccountDisplayName
+| project-reorder AccountDisplayName, GivenName, Surname
+| project-away *1
+| summarize IsAccountEnabledList = make_set(IsAccountEnabled) by AccountDisplayName
+| where IsAccountEnabledList !contains "false"
+| project AccountDisplayName;
+IdentityInfo
+| summarize arg_max(Timestamp,*) by AccountUpn
+| join kind=leftsemi DuplicateDisplayName on AccountDisplayName
+| project-reorder AccountDisplayName, IsAccountEnabled , AccountName
+| order by AccountDisplayName,AccountUpn
+| where AccountUpn contains "ext."
