@@ -1,0 +1,7 @@
+Sysmon
+| where EventID in (17,18)
+| where pipe_name has "\\postex_"
+or pipe_name matches regex "MSSE-\\d+-server"
+or pipe_name matches regex "status_\\d+"
+or pipe_name matches regex "msagent_\\d+"
+| extend HostCustomEntity = Computer
