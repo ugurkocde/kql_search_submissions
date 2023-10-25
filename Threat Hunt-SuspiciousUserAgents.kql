@@ -1,0 +1,11 @@
+let ThreatIntelFeed = externaldata(http_user_agent: string)[@"https://raw.githubusercontent.com/mthcht/awesome-lists/main/Lists/suspicious_http_user_agents_list.csv"] with (format="csv", ignoreFirstRecord=True);
+let SuspiciousUserAgent = materialize (
+ThreatIntelFeed
+| distinct http_user_agent
+);
+DeviceNetworkEvents
+| where ActionType == "HttpConnectionInspected"
+| extend json = todynamic(AdditionalFields)
+| extend direction = tostring(json.direction), method = tostring(json.method), user_agent = tostring(json.user_agent)
+| where direction == "Out"
+| where user_agent in (SuspiciousUserAgent)
