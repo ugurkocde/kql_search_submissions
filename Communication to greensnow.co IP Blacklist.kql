@@ -1,0 +1,4 @@
+let BLgreensnow = externaldata(IPaddr: string)[@"https://blocklist.greensnow.co/greensnow.txt"] with (format="txt");
+DeviceNetworkEvents
+| where ActionType == "ConnectionSuccess"
+| where RemoteIP in (BLgreensnow)

@@ -1,0 +1,5 @@
+let VPNRanges = externaldata (IpRange:string) [@'https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/vpn/ipv4.txt'] with (format=txt);
+SigninLogs
+| where isnotempty(IPAddress)
+| evaluate ipv4_lookup(VPNRanges, IPAddress, IpRange)
+| project TimeGenerated, UserPrincipalName, IPAddress, UserAgent

@@ -1,0 +1,31 @@
+let lookbackPeriod = 365d; // Define lookback period of 365 days
+let startDate = ago(lookbackPeriod);
+EmailEvents
+| where EmailDirection == "Inbound"
+| where TimeGenerated >= startDate
+| summarize arg_min(TimeGenerated, *) by NetworkMessageId // Deduplicate based on NetworkMessageId
+| extend EmailTimeGenerated = TimeGenerated
+| join kind=leftouter (
+EmailPostDeliveryEvents
+| where TimeGenerated >= startDate
+| summarize arg_min(TimeGenerated, *) by NetworkMessageId
+| extend FirstUserDetectedThreatTimeGenerated = TimeGenerated
+) on NetworkMessageId
+| project-away TimeGenerated, TimeGenerated1
+| extend WeekStart = startofweek(EmailTimeGenerated), // Ensure this aligns with your week start preference
+TimeDeltaUserReported = iif(ActionResult == "UserTriaged", datetime_diff('minute', EmailTimeGenerated, FirstUserDetectedThreatTimeGenerated), int(null)),
+TimeDeltaMSDetected = iif(ActionResult == "Success", datetime_diff('minute', EmailTimeGenerated, FirstUserDetectedThreatTimeGenerated), int(null))
+| summarize TotalReceived = count(),
+Blocked = countif(DeliveryAction == "Blocked" or DeliveryAction == "Junked"),
+Allowed = countif(DeliveryAction == "Delivered"),
+ThreatDetectedPostDeliveryTotal = countif(ActionResult == "Success" or ActionResult == "UserTriaged"),
+ThreatDetectedPostDeliveryUserDetected = countif(ActionResult == "UserTriaged"),
+ThreatDetectedPostDeliveryMSDetected = countif(ActionResult == "Success"),
+ThreatDetectedPostDeliveryMSDetectedSpam = countif(ActionResult == "Success" and ThreatTypes1 == "Spam"),
+ThreatDetectedPostDeliveryMSDetectedPhish = countif(ActionResult == "Success" and ThreatTypes1 == "Phish"),
+ThreatDetectedPostDeliveryUserDetectedSpam = countif(ActionResult == "UserTriaged" and ThreatTypes1 == "Spam"),
+ThreatDetectedPostDeliveryUserDetectedPhish = countif(ActionResult == "UserTriaged" and ThreatTypes1 == "Phish"),
+AverageTimeDeltaUserReported = avg(TimeDeltaUserReported),
+AverageTimeDeltaMSDetected = avg(TimeDeltaMSDetected)
+by WeekStart
+| order by WeekStart asc

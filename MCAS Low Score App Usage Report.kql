@@ -1,0 +1,7 @@
+///Use apps (Defender for Cloud) with a score lower than 5 in past 7 days.
+McasShadowItReporting
+| where TimeGenerated >= ago (7d)
+| where AppScore < 5
+| summarize sum(TotalEvents) by MachineName, EnrichedUserName, AppName, AppScore
+| project MachineName, TotaalEventsInlaatste7dagen=sum_TotalEvents, EnrichedUserName, AppName, AppScore
+| sort by TotalEventsInlast7days desc 

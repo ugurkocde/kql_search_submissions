@@ -1,0 +1,15 @@
+let AzureRoles = _GetWatchlist("AzureRoleData");
+AzureActivity
+| where OperationNameValue == "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE"
+| extend Assigner = Caller
+| extend Assignee = Claims_d.["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"]
+| extend GroupID = split(parse_json(tostring(parse_json(tostring(Properties_d.requestbody)).Properties)).RoleDefinitionId, "/")[-1]
+| extend GroupIDAsString = tostring(GroupID)
+| extend ResourceName = split(parse_json(tostring(parse_json(tostring(Properties_d.requestbody)).Properties)).Scope, "/")[-1]
+| where isnotempty(ResourceName)
+| join kind=inner (
+AzureActivity
+| extend GroupIDAsString = tostring(split(parse_json(tostring(parse_json(tostring(Properties_d.requestbody)).Properties)).RoleDefinitionId, "/")[-1])
+) on GroupIDAsString
+| join kind=inner AzureRoles on $left.GroupIDAsString == $right.SearchKey
+| project RoleName,Assigner,Assignee,ResourceName

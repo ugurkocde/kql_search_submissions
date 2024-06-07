@@ -1,0 +1,36 @@
+let searchTimeRange= 10d;
+let data =
+union
+( SigninLogs
+// Exclude Corp Device
+| where UserPrincipalName has "@"
+| extend deviceId = tostring(DeviceDetail.deviceId), displayName = tostring(DeviceDetail.displayName)
+| where isempty(deviceId)
+| where RiskEventTypes !='[]' or RiskEventTypes_V2 !='[]' // Risky sign in only, this can be commented but result more FP
+| project TimeGenerated, Type, AccountUpn= tolower(UserPrincipalName), IPAddress,AppDisplayName,RiskLevel
+)
+,(
+UrlClickEvents
+| project TimeGenerated,Type,AccountUpn=tolower( AccountUpn), IPAddress,Url
+)
+| where TimeGenerated >ago(searchTimeRange)
+| partition hint.strategy=native by AccountUpn
+(
+sort by TimeGenerated asc
+| scan with_match_id=id declare(ClickTime:datetime, LoginTime:datetime,Url:string) with
+(
+step UrlClick output=none: Type=="UrlClickEvents" => ClickTime = TimeGenerated ;
+step Login : Type=="SigninLogs" and TimeGenerated - UrlClick.ClickTime between (5s .. 4m )
+and not( ipv4_is_in_range(IPAddress,format_ipv4_mask(UrlClick.IPAddress,24))) //subnet of click IP different from signin IP, which can be adjusted
+=> LoginTime= TimeGenerated, ClickTime=UrlClick.ClickTime, Url=UrlClick.Url;
+)
+| project LoginTime, AccountUpn, ClickTime, LoginIPAddress= IPAddress,AppDisplayName, EventGroupNumber=id,RiskLevel,Url
+| sort by LoginTime,AccountUpn,EventGroupNumber desc // EventGroupNumber means how many grouped series events the user has
+);
+data
+//Exclude previous known signin IP
+| join kind=anti ( SigninLogs
+| where TimeGenerated between (ago(searchTimeRange+30d) .. ago(searchTimeRange))
+| where UserPrincipalName in (( data | distinct AccountUpn))
+| distinct IPAddress, UserPrincipalName
+) on $left.AccountUpn == $right.UserPrincipalName, $left.LoginIPAddress==$right.IPAddress

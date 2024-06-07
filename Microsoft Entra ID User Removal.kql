@@ -1,0 +1,7 @@
+AuditLogs
+| where OperationName == "Delete user"
+// Exclude Accounts deleted via AD Sync, add more exclusions depending on your environment
+// | where InitiatedBy.user.id != ""
+// Trim ID from user
+| extend DeletedUser = substring(TargetResources[0].userPrincipalName, 32)
+| extend DeletedBy = InitiatedBy.user.userPrincipalName

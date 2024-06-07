@@ -1,0 +1,6 @@
+// Communication to threatintel.co.nz Feed (https://www.threatintel.co.nz/ioc-feeds/)
+let threatintelconzraw = externaldata(IPaddr: string)[@"https://www.threatintel.co.nz/wp-content/uploads/IP"] with (format="txt", ignoreFirstRecord=True);
+let threatintelconzIPv4 = threatintelconzraw
+| extend IPv4 = extract_all(@"((?:[0-9]{1,3}\.){3}[0-9]{1,3})", IPaddr)[0];
+DeviceNetworkEvents
+| where RemoteIP has_any (threatintelconzIPv4)

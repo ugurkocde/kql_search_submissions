@@ -1,0 +1,4 @@
+let OpenPhish = externaldata (Url: string) ["https://openphish.com/feed.txt"];
+EmailUrlInfo
+| where Url has_any (OpenPhish)
+| join EmailEvents on NetworkMessageId
