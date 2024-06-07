@@ -1,0 +1,5 @@
+EmailAttachmentInfo
+| where FileType in~ ("png", "jpg", "svg", "eps")
+| where isempty( SenderObjectId)
+| where FileName matches regex "^[A-Z]{4,}\\.[A-Za-z0-9]+$"
+| where FileSize >= 300 and FileSize <= 1000

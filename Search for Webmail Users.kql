@@ -1,0 +1,6 @@
+// "Search for Webmail Users"
+DeviceNetworkEvents
+| search "webmail"
+| where TimeGenerated >= ago (30d)
+| where isnotempty( RemoteUrl)
+| project TimeGenerated, InitiatingProcessAccountName, InitiatingProcessAccountUpn, InitiatingProcessFileName, RemoteIP, RemotePort, RemoteUrl

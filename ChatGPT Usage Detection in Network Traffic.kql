@@ -1,0 +1,9 @@
+// Split if domain consists of 3 parts like: control.dropbox.com or email.wetransfer.com
+let partialRemoteUrlToDetect = "openai.com"; // For main domain filtering
+DeviceNetworkEvents
+| where Timestamp > ago(100d)
+| extend UrlParts = split(RemoteUrl, ".")
+| extend DomainWithTLD = iif(array_length(UrlParts) >= 2, strcat(UrlParts[-2], ".", UrlParts[-1]), RemoteUrl) // Gets the main domain and TLD
+| where DomainWithTLD == partialRemoteUrlToDetect or RemoteUrl has "chat.openai.com" // Checks for the specific domain or shortened link
+| summarize TotalConnections = count(), LastConnection = max(Timestamp) by InitiatingProcessAccountName, DeviceName, DeviceId, InitiatingProcessFileName, RemoteUrl = DomainWithTLD
+| project DeviceName, DeviceId, InitiatingProcessAccountName, InitiatingProcessFileName, RemoteUrl, TotalConnections, LastConnection

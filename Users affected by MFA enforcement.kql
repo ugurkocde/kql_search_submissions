@@ -1,0 +1,4 @@
+AADSignInEventsBeta
+| where AuthenticationRequirement contains "singleFactor"
+| where Application contains "Azure CLI" or Application contains "Azure Powershell"
+| summarize by AccountDisplayName, Application,AccountUpn, OSPlatform, AuthenticationRequirement, ClientAppUsed

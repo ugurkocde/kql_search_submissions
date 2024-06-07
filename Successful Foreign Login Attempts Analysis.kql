@@ -1,0 +1,18 @@
+// Successful login attempts from abroad NL. You can change line 16 for your country.
+SigninLogs
+| where TimeGenerated >= ago(7d)
+| mv-expand LocationDetails
+| extend stad = tostring(LocationDetails.city)
+| extend land = tostring(LocationDetails.countryOrRegion)
+| extend authMethod = tostring(parse_json(MfaDetail).authMethod)
+| extend authDetail = tostring(parse_json(MfaDetail).authDetail)
+| where isnotempty(land) and ResultType == 0
+| project
+TimeGenerated = format_datetime(TimeGenerated, 'dd/MM/yyyy'),
+Identity,
+land,
+authMethod,
+authDetail
+| where land !contains "NL"
+| distinct TimeGenerated, Identity, land
+| order by TimeGenerated asc

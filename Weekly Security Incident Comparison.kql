@@ -1,0 +1,27 @@
+//Weekly Security Incident Comparison
+union (
+SecurityIncident
+| where TimeGenerated >= ago(21d) and TimeGenerated < ago(14d)
+| summarize ThreeWeeksAgoCount = count() by Title
+| project Title, ThreeWeeksAgoCount, TwoWeeksAgoCount = 0, LastWeekCount = 0, CurrentWeekCount = 0, Difference = 0
+),
+(
+SecurityIncident
+| where TimeGenerated >= ago(14d) and TimeGenerated < ago(7d)
+| summarize TwoWeeksAgoCount = count() by Title
+| project Title, ThreeWeeksAgoCount = 0, TwoWeeksAgoCount, LastWeekCount = 0, CurrentWeekCount = 0, Difference = 0
+),
+(
+SecurityIncident
+| where TimeGenerated >= ago(7d) and TimeGenerated < now()
+| summarize LastWeekCount = count() by Title
+| project Title, ThreeWeeksAgoCount = 0, TwoWeeksAgoCount = 0, LastWeekCount, CurrentWeekCount = 0, Difference = 0
+),
+(
+SecurityIncident
+| where TimeGenerated >= startofweek(now())
+| summarize CurrentWeekCount = count() by Title
+| project Title, ThreeWeeksAgoCount = 0, TwoWeeksAgoCount = 0, LastWeekCount = 0, CurrentWeekCount, Difference = 0
+)
+| project Title, ThreeWeeksAgoCount, TwoWeeksAgoCount, LastWeekCount, CurrentWeekCount, DifferenceWithLastWeek = LastWeekCount - TwoWeeksAgoCount
+| sort by LastWeekCount desc

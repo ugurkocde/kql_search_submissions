@@ -1,0 +1,7 @@
+let CIDRASN = (externaldata (CIDR:string, CIDRASN:int, CIDRASNName:string)
+['https://firewalliplists.gypthecat.com/lists/kusto/kusto-cidr-asn.csv.zip']
+with (ignoreFirstRecord=true));
+DeviceNetworkEvents
+| where RemoteIPType == "Public"
+| evaluate ipv4_lookup(CIDRASN, RemoteIP, CIDR, return_unmatched=true)
+| extend GeoIPData = geo_info_from_ip_address(RemoteIP)

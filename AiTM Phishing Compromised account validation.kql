@@ -1,0 +1,18 @@
+// This KQL will detect when user account was compromised during AiTM Phishing Attacks
+
+AADSignInEventsBeta
+| where RiskLevelDuringSignIn in (50,100) // Medium and High risk level
+//72782ba9-4490-4f03-8d82-562370ea3566 -> Office 365 app used by Evilproxy
+//4765445b-32c6-49b0-83e6-1d93765276ca -> Office Home used by Evilginx
+| where ApplicationId in ("72782ba9-4490-4f03-8d82-562370ea3566", "4765445b-32c6-49b0-83e6-1d93765276ca")
+| where isempty(DeviceTrustType) //Device Authentication doesn't work via reverse-proxy so even AADjoined device will be treated as none-joined device by AAD
+| where ClientAppUsed == "Browser" // Only web browser traffic is interesting
+| where ErrorCode == 0
+| where isnotempty(AccountUpn)
+| where isnotempty(IPAddress)
+| join kind=inner (
+EmailEvents
+| where SenderFromAddress contains "@example.com" // put the suspicious phishing email sender or domain
+| project RecipientEmailAddress
+) on $left.AccountUpn == $right.RecipientEmailAddress
+| project Timestamp, AccountObjectId, AccountUpn, IPAddress, SessionId, CorrelationId, Application, ReportId
