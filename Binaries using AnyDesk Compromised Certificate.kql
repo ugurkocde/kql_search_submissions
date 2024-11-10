@@ -1,0 +1,14 @@
+//This query hunts for binaries not related to AnyDesk, signed with a potentially compromised signing certificate
+let Timeframe = 7d; 
+let SuspiciousAnydeskFileCertificate = DeviceFileCertificateInfo
+    | where Timestamp > ago(Timeframe)
+    | where CertificateSerialNumber =~ "abc" 
+    | where Issuer == "xyz"
+    | project Timestamp, DeviceName, SHA1;
+SuspiciousAnydeskFileCertificate
+    | join (DeviceProcessEvents
+    | where Timestamp > ago(Timeframe)
+    | where ProcessVersionInfoCompanyName !contains @"AnyDesk"
+    | project SHA1, ActionType, FileName, FolderPath, ProcessVersionInfoCompanyName, ProcessVersionInfoProductName, ProcessCommandLine, AccountName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine
+    )on SHA1
+    | sort by Timestamp desc 

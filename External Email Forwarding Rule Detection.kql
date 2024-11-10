@@ -1,0 +1,11 @@
+//This query detects Inbox Rules being created that are forwarding emails to an external domain
+CloudAppEvents
+| where ActionType in~ ("Set-Mailbox", "New-InboxRule", "Set-InboxRule", "UpdateInboxRules")
+| extend ForwardingAddress = extract(@"Forward.*?([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})", 1, tostring(ActivityObjects))
+| where isnotempty(ForwardingAddress)
+| where not(ForwardingAddress contains "@yourdomain")
+| where not(ForwardingAddress contains "@yourdomain")
+| where not(ForwardingAddress contains "@yourdomain")
+| where not(ForwardingAddress contains "@yourdomain")
+| where not(ForwardingAddress contains "@@yourdomain")
+| project Timestamp, ActionType, CountryCode, City, ISP, IPAddress, AccountDisplayName, ForwardingAddress, ActivityObjects, ReportId, AccountId 

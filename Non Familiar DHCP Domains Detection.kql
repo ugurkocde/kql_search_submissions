@@ -1,0 +1,8 @@
+//This query detects when device TCPIP configurations are modified to use non-trusted DHCP domains
+//Helps identify when devices are using potentially unsafe networks (airports, hotels, coffee shops)
+//Important for protecting sensitive data access until VPN or enterprise DHCP domain is confirmed
+DeviceRegistryEvents
+| where RegistryKey contains "tcpip"
+| where RegistryValueName contains "dhcpdomain"
+// to reduce the number of false positive, I moved out localIPs, results with "." to reduce the number of local home routers and specific country
+| where RegistryValueData !contains "192." and RegistryValueData contains "." and RegistryValueData !endswith ".es" 

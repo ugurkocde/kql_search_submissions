@@ -1,0 +1,7 @@
+//This query provides insights about service principal sign-in requests, resources, and source IPs
+//Useful for analyzing service principal usage before implementing IP restrictions with conditional access
+let LookbackPeriod = 365d;
+AADServicePrincipalSignInLogs
+| where TimeGenerated > ago(LookbackPeriod)
+| summarize make_set(IPAddress), RequestCount = count() by ServicePrincipalName, ResourceDisplayName
+| order by RequestCount desc 

@@ -1,0 +1,15 @@
+//This query calculates daily ingested data with moving average in Log Analytics workspace
+//Shows sum of billable data per day and moving average trend using series_fir()
+//configure lookback period
+let lookback = 365d;
+Usage
+//iclude only billable data and remove current day in time filter
+| where TimeGenerated between(ago(lookback)..now(-1d)) and IsBillable == true
+| project TimeGenerated, Quantity
+//create series representing data ingested per day (converted from MB to GB)
+| make-series DailyIngestionGB=sum(Quantity/1000) default=0 on TimeGenerated step 1d
+//calculate moving average with FIR function using fixed size filter (5) of equal coefficients
+| extend MovingAvg = series_fir(DailyIngestionGB,repeat(1, 5))
+| project TimeGenerated, DailyIngestionGB, MovingAvg
+//render on a line graph
+| render timechart with (xtitle = "Date", ytitle = "Ingested data (GB)") 

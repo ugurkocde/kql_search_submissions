@@ -1,0 +1,78 @@
+//This query checks DeviceFileEvents and DeviceProcessEvents against known malicious hashes from AbuseCH feed
+//Provides additional context including malware signature, mime type, and VirusTotal percentage
+let timeframe = 24h;
+let abuse_feed = externaldata(input: string)
+    [@'https://bazaar.abuse.ch/export/csv/recent/']
+    with (format='txt', ignoreFirstRecord=True)
+    | where input !startswith '#';
+let hash_regex = @'(\b[a-fA-F0-9]{32,128}\b)';
+let filetype_hash_regex = @'"[^n]\w*\/.*?"';
+let datetime_regex = @'\d{4}-\d{2}-\d{2}\s.{8}';
+let extracted_abuse_feed = abuse_feed
+    | extend hashes = extractall(hash_regex, input) 
+    | extend
+        first_seen_utc = extract(datetime_regex, 0, input),
+        signature = trim_end(@',\s"n\/a"', extract(@'"[^0-9]\w*\.{0,1}\w*",\s"n\/a"', 0, input)),
+        mime_type = extract(filetype_hash_regex, 0, input),
+        file_type_guess = extract(@'"\w{2,4}"', 0, input),
+        vt_percent = extract(@'\d{1,2}\.\d{1,2}', 0, input),
+        sha256_hash = hashes[0],
+        md5_hash = hashes[1],
+        sha1_hash = hashes[2],
+        imp_hash = hashes[3]
+    | extend imp_hash = iff(array_length(hashes) > 4, hashes[4], imp_hash);
+union DeviceFileEvents, DeviceProcessEvents
+| where TimeGenerated > ago(timeframe)
+| union isfuzzy=true extracted_abuse_feed
+| where (isnotempty(MD5) and MD5 == md5_hash)
+    or (isnotempty(SHA1) and SHA1 == sha1_hash)
+    or (isnotempty(SHA256) and SHA256 == sha256_hash)
+    or (isnotempty(InitiatingProcessMD5) and InitiatingProcessMD5 == md5_hash)
+    or (isnotempty(InitiatingProcessSHA1) and InitiatingProcessSHA1 == sha1_hash)
+    or (isnotempty(InitiatingProcessSHA256) and InitiatingProcessSHA256 == sha256_hash)
+| extend match_kind = case(
+                          MD5 == md5_hash,
+                          'MD5',
+                          SHA1 == sha1_hash,
+                          'SHA1',
+                          SHA256 == sha256_hash,
+                          'SHA256',
+                          InitiatingProcessMD5 == md5_hash,
+                          'InitProcessMD5',
+                          InitiatingProcessSHA1 == sha1_hash,
+                          'InitProcessSHA1',
+                          InitiatingProcessSHA256 == sha256_hash,
+                          'InitProcessSHA256', ''
+                      )
+| extend match = case(
+                     match_kind == 'MD5',
+                     MD5,
+                     match_kind == 'SHA1',
+                     SHA1,
+                     match_kind == 'SHA256',
+                     SHA256,
+                     match_kind == 'InitProcessMD5',
+                     InitiatingProcessMD5,
+                     match_kind == 'InitProcessSHA1',
+                     InitiatingProcessSHA1,
+                     match_kind == 'InitProcessSHA256',
+                     InitiatingProcessSHA256, ''
+                 )
+| project-reorder
+    TimeGenerated,
+    DeviceName,
+    match,
+    match_kind,
+    first_seen_utc,
+    file_type_guess,
+    mime_type,
+    signature,
+    vt_percent,
+    ProcessCommandLine,
+    FileName,
+    FolderPath,
+    InitiatingProcessCommandLine,
+    InitiatingProcessFileName,
+    InitiatingProcessFolderPath,
+    InitiatingProcessParentFileName,
+    InitiatingProcessAccountName 

@@ -1,0 +1,15 @@
+//This query looks for rogue network devices using Microsoft for Endpoint device discovery
+//Helps find unmanaged devices connected to your corporate network without extra appliances
+//Shows which onboarded device detected each rogue device to help determine network location
+DeviceInfo
+| where OnboardingStatus != "Onboarded"
+| where DeviceType == "NetworkDevice"
+// The following line will allow you to exclude known vendors
+//| where Vendor !in ("Enter Vendor", "Enter Vendor", "Enter Vendor")
+| summarize arg_max(Timestamp, *) by DeviceId
+| where isempty(MergedToDeviceId) 
+| invoke SeenBy()
+| project Timestamp, DeviceId, DeviceName, DeviceType, Vendor, SeenBy
+| join DeviceNetworkInfo on DeviceId 
+| extend IPAddresses_0_IPAddress = parse_json(IPAddresses)[0].IPAddress
+| project Timestamp, DeviceId, DeviceName, DeviceType, Vendor, IPAddresses_0_IPAddress, MacAddress 

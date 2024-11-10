@@ -1,0 +1,48 @@
+//This query maps local ports and protocols to commonly known services
+//Returns service identification along with device and connection details
+DeviceNetworkEvents
+| extend PORT = LocalPort
+| extend PROTOCOL = Protocol
+| where ActionType <> "NetworkSignatureInspected"
+| where PORT != ""
+| project DeviceName, RemoteIP, TimeGenerated, PORT, PROTOCOL
+| extend SERVICE = case(PORT == 7 and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "Echo Service", 
+PORT==20 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Sctp"), "FTP Data Transfer", 
+PORT==21 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Sctp" or PROTOCOL contains "Udp"), "FTP",
+PORT==22 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Sctp" or PROTOCOL contains "Udp"), "SSH-SCP",
+PORT==23 and PROTOCOL contains "Tcp", "Telnet",
+(PORT==25 or PORT==587) and PROTOCOL contains "Tcp", "SMTP",
+PORT==53 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Udp"), "DNS",
+PORT==69 and PROTOCOL contains "Udp", "TFTP",
+PORT==80 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Sctp" or PROTOCOL contains "Udp"), "HTTP",
+(PORT==88 or PORT==464) and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "Kerberos",
+PORT==102 and PROTOCOL contains "Tcp", "Iso-tsap",
+PORT==110 and PROTOCOL contains "Tcp", "POP3",
+PORT==135 and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "Microsoft EPMAP",
+PORT==137 and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "NetBIOS-ns",
+PORT==139 and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "NetBIOS-ssn",
+PORT==143 and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "IMAP4",
+(PORT==381 or PORT==383) and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "HP Openview",
+PORT==443 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Sctp" or PROTOCOL contains "Udp"), "HTTP over SSL",
+PORT==465 and PROTOCOL contains "Tcp", "SMTP over TLS/SSL, SSM",
+PORT==593 and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "Microsoft DCOM",
+PORT==636 and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"), "LDAP over TLS/SSL",
+PORT==691 and PROTOCOL contains "Tcp", "MS Exchange",
+(PORT==989 or PORT==990) and (PROTOCOL contains "Udp" or PROTOCOL contains "Tcp"),"FTP Over SSL",
+PORT==993 and PROTOCOL contains "Tcp", "IMAP4 over SSL",
+PORT==995 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Udp"), "POP3 over SSL",
+PORT==1025 and PROTOCOL contains "Tcp", "Microsoft RPC",
+PORT==1194 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Udp"), "OpenVPN",
+PORT==1589 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Udp"), "Cisco VQP",
+PORT==2083 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Udp"), "radsec/cPanel",
+(PORT==2483 or PORT==2484) and (PROTOCOL contains "Tcp" or PROTOCOL contains "Udp"), "Oracle DB",
+PORT==3306 and PROTOCOL contains "Tcp", "MYSQL",
+PORT==3389 and PROTOCOL contains "Tcp", "RDP",
+PORT==5432 and PROTOCOL contains "Tcp", "PostgreSQL",
+PORT==5900 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Udp"), "RFB",
+PORT==8222 and (PROTOCOL contains "Tcp" or PROTOCOL contains "Udp"), "VMware Server",
+PORT==9100 and PROTOCOL contains "Tcp", "PDL",
+PORT==445 and PROTOCOL contains "Tcp", "SMB",
+PORT==54443, "Carbon Black Cloud Linux Sensor"
+ ,"NULL")
+| project TimeGenerated, PORT, PROTOCOL, SERVICE, DeviceName, RemoteIP 

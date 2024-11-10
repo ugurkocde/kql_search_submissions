@@ -1,0 +1,52 @@
+//This query estimates the percentage of likely malicious sign in attempts for VIP users
+//It uses typical locations, devices, sign in risk, and threat intelligence to determine malicious attempts
+//Helps identify VIP users at risk of being locked out by Risk based CA policies
+// Load the VVIP Users Watchlist
+let VVIPUsers = _GetWatchlist('EntraVVIP')
+    | extend AccountUPN = tolower(AccountUPN)
+    | project AccountUPN;
+
+// Load some external Threat Intel
+let BlockList = (externaldata(ip: string)
+    [@"https://rules.emergingthreats.net/blockrules/compromised-ips.txt",
+    @"https://raw.githubusercontent.com/stamparm/ipsum/master/levels/5.txt",
+    @"https://cinsscore.com/list/ci-badguys.txt",
+    @"https://lists.blocklist.de/lists/all.txt",
+    @"https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.txt"
+    ]
+    with(format="csv")
+    | where ip matches regex "(^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$)"
+    | distinct ip
+    );
+
+// Query the SignInLogs for the specified time range
+let SignInData = SigninLogs
+    | where TimeGenerated >= ago(90d)
+        and IsInteractive == true
+        and HomeTenantId == "aea37347-50ba-4d20-8681-47eaedfab1f8"
+    | extend AccountUPN = tolower(UserPrincipalName)
+    | where AccountUPN in (VVIPUsers);
+
+// Determine 10 typical locations for VVIP Users by successful, no risk, sign ins
+let VVIPLocations = SignInData
+    | where ResultType == 0 and RiskLevelDuringSignIn has "none" and IPAddress !in (BlockList)
+    | summarize TypicalLocations = make_set(Location, 10) by AccountUPN;
+
+// Determine known devices and managed devices for VVIP Users
+let VVIPDevices = SignInData
+    | where ResultType == 0 and RiskLevelDuringSignIn has "none" and IPAddress !in (BlockList)
+    | extend IsManaged = iff(DeviceDetail.trustType == "Hybrid Azure AD joined" or DeviceDetail.isCompliant == "true", strcat("Yes, Managed ", DeviceDetail.operatingSystem, " Device"), strcat("No, BYOD ", DeviceDetail.operatingSystem, " Device"))
+    | summarize TypicalDevices = make_set(IsManaged,10) by AccountUPN;
+
+// Now, put it all together
+SignInData
+| join kind = leftouter VVIPLocations on AccountUPN
+| extend IsTypicalLocation = iff(TypicalLocations has Location, true, false)
+| join kind = leftouter VVIPDevices on AccountUPN
+| extend IsManaged = iff(DeviceDetail.trustType == "Hybrid Azure AD joined" or DeviceDetail.isCompliant == "true", strcat("Yes, Managed ", DeviceDetail.operatingSystem, " Device"), strcat("No, BYOD ", DeviceDetail.operatingSystem, " Device"))
+| extend IsTypicalDevice = iff(TypicalDevices has IsManaged,true, false)
+| extend IsMaliciousSignIn = iff(ResultType != 0 and (IsTypicalLocation != true or IsTypicalDevice != true or RiskLevelDuringSignIn in ('Medium','High') or IPAddress in (BlockList)), true, false)
+| project-away AccountUPN1, AccountUPN2
+| summarize TotalSignIns = count(), MaliciousSignIns = countif(IsMaliciousSignIn == true), TopMaliciousLocations = make_set_if(Location,IsMaliciousSignIn == true, 20) by AccountUPN, UserDisplayName
+| project AccountUPN, UserDisplayName, TotalSignIns, PercentLikelyMalicious = round(100.0 * MaliciousSignIns / TotalSignIns, 2), TopMaliciousLocations
+| order by PercentLikelyMalicious desc 

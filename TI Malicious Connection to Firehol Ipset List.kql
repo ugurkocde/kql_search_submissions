@@ -1,0 +1,63 @@
+//This query checks network connections against potentially malicious IPs from Firehol ipset list
+//Includes connection details, CIDR country and port information
+let timeframe = 24h;
+let threat_intel_feed = externaldata(DestIP: string)
+    [@'https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level3.netset']
+    with (format='txt', ignoreFirstRecord=true);
+let cidr_ranges = materialize(externaldata(CIDRCountry: string, CIDR: string, CIDRCountryName: string)
+    ['https://firewalliplists.gypthecat.com/lists/kusto/kusto-cidr-countries.csv.zip'] with (type=csv, ignoreFirstRecord=true));
+let port_info = (externaldata (Protocol: string, Port: int, Description: string)
+    ['https://raw.githubusercontent.com/maraisr/ports-list/main/all.csv']
+    with (type=csv, ignoreFirstRecord=true));
+let ip_regex = '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}';
+let malicious_ips = materialize(
+    threat_intel_feed
+    | where DestIP matches regex ip_regex
+    | distinct DestIP
+    );
+DeviceNetworkEvents
+| where TimeGenerated > ago(timeframe)
+| where ActionType in~('ConnectionSuccess', 'ConnectionRequest', 'InboundConnectionAccepted')
+| where RemoteIP in(malicious_ips)
+| summarize arg_max(TimeGenerated, *) by RemoteIP, DeviceName
+| extend Country = tostring(geo_info_from_ip_address(RemoteIP).country)
+| join kind=leftouter (cidr_ranges
+    | distinct CIDRCountry, CIDRCountryName)
+    on $left.Country == $right.CIDRCountryName
+| extend RemoteUrl = iff(isempty(RemoteUrl), 'Not Applicable', RemoteUrl)
+| where CIDRCountry !contains 'RFC' and not(ipv4_is_private(RemoteIP))
+| join kind=leftouter (port_info
+    | summarize Protocol = make_set(Protocol), Port_Desc = make_set(Description) by Port)
+    on $left.RemotePort == $right.Port
+| extend Port_Desc = iff(
+                         isempty(Port_Desc)
+    and RemotePort <= 49151,
+                         pack_array('Unknown IANA Registered Port'),
+                         Port_Desc
+                     )
+| extend Port_Desc = iff(
+                         isempty(Port_Desc)
+    and (RemotePort >= 49152 and RemotePort <= 65535),
+                         pack_array('Unregistered Ephemeral/Private Port'),
+                         Port_Desc
+                     )
+| project
+    TimeGenerated,
+    DeviceName,
+    RemoteIP,
+    CIDRCountry,
+    RemoteUrl,
+    RemotePort,
+    ActionType,
+    Port_Desc,
+    InitiatingProcessAccountName,
+    InitiatingProcessAccountUpn,
+    InitiatingProcessFileName,
+    InitiatingProcessId,
+    InitiatingProcessCommandLine,
+    InitiatingProcessMD5,
+    InitiatingProcessFolderPath,
+    LocalIP,
+    LocalPort,
+    Type
+| sort by TimeGenerated desc 

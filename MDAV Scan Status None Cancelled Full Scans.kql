@@ -1,0 +1,9 @@
+//This query returns devices seen within the last day where a full scan has never run or was cancelled
+//Results can be used with "Take action" button to trigger full scans on selected devices
+DeviceEvents
+| where ActionType has_any ("AntivirusScanCompleted", "AntivirusScanCancelled")
+| extend AdditionalFields = parse_json(AdditionalFields)
+| extend ScanType = AdditionalFields.["ScanTypeIndex"]
+| where ScanType == "Full"
+| summarize make_set(ActionType) by DeviceId, DeviceName
+| where set_ActionType !has ("AntivirusScanCompleted") 

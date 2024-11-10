@@ -1,0 +1,19 @@
+//KQL Query to identify usage of VBScript engine and artefacts in your environment
+//Helps prepare for upcoming VBScript deprecation
+// Sentinel
+union DeviceProcessEvents, DeviceNetworkEvents, DeviceEvents
+| where TimeGenerated > ago(30d)
+| where ProcessCommandLine has_any ("wscript", "Wscript.Shell", "WScript.CreateObject", "cscript", "vbscript")
+| extend CommandLine = parse_command_line(ProcessCommandLine, "windows")
+| mv-expand CommandLine
+| where CommandLine has ".vbs"
+| summarize Count = count() by VBScript = tostring(CommandLine)
+
+// Defender XDR
+union DeviceProcessEvents, DeviceNetworkEvents, DeviceEvents
+| where Timestamp > ago(30d)
+| where ProcessCommandLine has_any ("wscript", "Wscript.Shell", "WScript.CreateObject", "cscript", "vbscript")
+| extend CommandLine = parse_command_line(ProcessCommandLine, "windows")
+| mv-expand CommandLine
+| where CommandLine has ".vbs"
+| summarize Count = count() by VBScript = tostring(CommandLine) 

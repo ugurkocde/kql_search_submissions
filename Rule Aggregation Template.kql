@@ -1,0 +1,64 @@
+//This is a proof of concept for aggregating multiple individual queries into a single unifying query
+//Helps organize similar use cases and avoid analytics rule limitations
+// Demo of combining multiple queries into one
+let demotbl = datatable(Timestamp:datetime, RowNum:int, Value:int, AlertTrigger: string, SampleData: string) [
+datetime(2024, 9, 12), 1, 152533, "Alert1", "[1] This is a sample of information within the first row of the table.",
+datetime(2024, 3, 13), 2, 212395, "Alert2", "[2] This is a sample of information within the second row of the table.",
+datetime(2023, 6, 12), 3, 333225, "Alert3", "[3] This is a sample of information within the third row of the table.",
+datetime(2024, 2, 13), 4, 852919, "Alert4", "[4] This is a sample of information within the fourth row of the table."
+];
+let alerttrigger = dynamic(["Alert1","Alert2", "Alert3", "Alert4"]);
+let alert1 = demotbl
+    | search 'alert1'
+    | extend AlertDesc = 'Alert number 1 has triggered.'
+    | project-reorder AlertDesc;
+//
+let alert2 = demotbl
+    | search 'alert0' // Does not meet search criteria in order to trigger
+    | extend AlertDesc = 'Alert number 2 has triggered.'
+    | project-reorder AlertDesc;
+//
+let alert3 = demotbl
+    | search 'alert3'
+    | extend AlertDesc = 'Alert number 3 has triggered.'
+    | project-reorder AlertDesc;
+//
+let alert4 = demotbl
+    | search 'alert4'
+    | extend AlertDesc = 'Alert number 4 has triggered.'
+    | project-reorder AlertDesc;
+union isfuzzy=false
+    alert1, 
+    alert2, 
+    alert3, 
+    alert4
+| project-away $table
+| sort by RowNum asc
+
+// Example aggregate query which references multiple tables and combines multiple use cases. 
+let timeframe = 12h;
+let cnciexpress = DeviceNetworkEvents
+    | where TimeGenerated > ago(timeframe)
+    | where (InitiatingProcessFileName =~ "wksprt.exe" and InitiatingProcessCommandLine == "wksprt.exe") 
+        or (InitiatingProcessFileName =~ "iexpress.exe" and InitiatingProcessCommandLine == "iexpress.exe")
+    | extend AlertDesc = 'Command and control using iexpress.exe or wksprt.exe';
+//
+let wsmprovdsrole = DeviceImageLoadEvents
+    | where TimeGenerated > ago(timeframe)
+    | where InitiatingProcessFileName =~ "wsmprovhost.exe"
+    | where FileName =~ "DSROLE.dll"
+    | where not(FolderPath has_any("system32", "syswow64"))
+    | extend AlertDesc = 'Search order hijack using Wsmprovhost.exe and DSROLE.dll';
+//
+let clipexeversion = DeviceImageLoadEvents
+    | where TimeGenerated > ago(timeframe)
+    | where InitiatingProcessFileName =~ "clip.exe"
+    | where FileName in~ ("version.dll")
+    | where not(FolderPath has_any("system32", "syswow64", "program files", "windows defender\\platform", "winsxs",
+        "platform", "trend micro"))
+    | extend AlertDesc = 'Search order hijack using clip.exe and Version.dll';
+union isfuzzy=false
+    cnciexpress,
+    wsmprovdsrole,
+    clipexeversion
+| sort by TimeGenerated desc 

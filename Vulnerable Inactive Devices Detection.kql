@@ -1,0 +1,13 @@
+//This query identifies devices inactive for more than 10 days that have specific CVE vulnerabilities
+//Helps IT engineers track devices where patches couldn't be applied due to inactivity
+let CheckinAlertThreshold = 10; // Change the threshold here 
+DeviceTvmSoftwareVulnerabilities
+| where CveId == "CVE-2024-30103"
+| join DeviceInfo on DeviceName
+| where Timestamp > ago(30d)
+| where isnotnull(OSBuild) 
+| summarize LatestCheckin = max(Timestamp), ReportId = max(ReportId) by DeviceId, DeviceName, OSPlatform, OSBuild, CveId
+| extend DaysSinceCheckin = datetime_diff('day', now(), LatestCheckin)
+| where DaysSinceCheckin > CheckinAlertThreshold
+| project DaysSinceCheckin, LatestCheckin, DeviceName, CveId, OSPlatform, OSBuild, ReportId
+| sort by DaysSinceCheckin asc 

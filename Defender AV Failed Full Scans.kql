@@ -1,0 +1,9 @@
+//This query returns a report of all devices where a full antivirus scan was never successful
+//Note: The !has operator may show an error but will return results if any exist
+DeviceEvents
+| where ActionType has_any ("AntivirusScanCompleted", "AntivirusScanCancelled")
+| extend AdditionalFields = parse_json(AdditionalFields)
+| extend ScanType = AdditionalFields.["ScanTypeIndex"]
+| where ScanType == "Full"
+| summarize make_set(ActionType) by DeviceId, DeviceName
+| where set_ActionType !has ("AntivirusScanCompleted") 

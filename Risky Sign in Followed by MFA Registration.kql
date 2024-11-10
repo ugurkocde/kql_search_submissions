@@ -1,0 +1,25 @@
+//This query detects successful risky sign-ins followed by MFA registration
+//Helps identify potential adversaries trying to achieve persistence through security info registration
+let Threshold = 1440;
+let signinEvents = 
+    SigninLogs
+    | where TimeGenerated >= ago(1d)
+    | where ResultType == 0
+    | where RiskLevelDuringSignIn in ("high","medium","low")   // Risky sign-ins only
+    | extend 
+    PWResult = tostring(parse_json(AuthenticationDetails)[0].authenticationStepResultDetail), 
+    MFAResult = tostring(parse_json(AuthenticationDetails)[1].authenticationStepResultDetail)
+    | project SignInTime = TimeGenerated, UserId = tolower(UserPrincipalName), RiskLevelDuringSignIn, SignInIPAddress = IPAddress, SignInLocation = Location, PWResult, MFAResult;
+let authRegEvents = 
+    AuditLogs
+    | where TimeGenerated >= ago(1d)
+    | where OperationName contains "User registered security info"
+    | where Result == "success"
+    | extend TargetUser = tostring(parse_json(TargetResources)[0].userPrincipalName)
+    | extend AuthRegIPAddress = parse_json(tostring(InitiatedBy.user)).ipAddress
+    | project AuthRegTime = TimeGenerated, UserId = tolower(TargetUser), OperationName, AuthRegResult = Result, AuthRegIPAddress;
+signinEvents
+| join kind=inner authRegEvents on UserId 
+| where AuthRegTime > SignInTime
+| extend ["Minutes between actions"] = datetime_diff('minute', AuthRegTime, SignInTime)
+| where ["Minutes between actions"] <= Threshold 

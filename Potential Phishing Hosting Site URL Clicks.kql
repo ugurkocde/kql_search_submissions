@@ -1,0 +1,11 @@
+//This query detects URL clicks to known phishing hosting sites
+//Filters for allowed clicks to potentially malicious sites delivered to inbox or junk
+//Excludes senders from your own domain
+UrlClickEvents
+| where Url has_any ("formstack.com", "drive.autodesk.com", "app.box.com", "app.simplified.com", "simplified.com", "surveymonkey.com", "drive.google.com") 
+| where ActionType contains "ClickAllowed"
+| join EmailEvents on NetworkMessageId
+| where DeliveryAction contains "Delivered" or DeliveryAction contains "Junked"
+| where DeliveryLocation contains "Inbox" or DeliveryLocation contains "Junk"
+| where SenderFromAddress !contains "example"
+| where SenderFromAddress !contains "example" 

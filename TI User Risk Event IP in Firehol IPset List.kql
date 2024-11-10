@@ -1,0 +1,51 @@
+//This query checks for malicious IP addresses in IdentityRiskEvents and correlates with recent logins
+//Includes CIDR/ISP info, user agent details, risk state and identifies Tor nodes
+let timeframe = 24h;
+let ip_regex = '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}';
+let threat_intel_feed = externaldata(DestIP: string)
+    [@'https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/firehol_level4.netset']
+    with (format='txt', ignoreFirstRecord=true);
+let tor_nodes = materialize(externaldata(NodeIP: string)
+    [@'https://raw.githubusercontent.com/firehol/blocklist-ipsets/master/tor_exits.ipset']
+    with (format='txt', ignoreFirstRecord=true)
+    | distinct NodeIP);
+let malicious_ips = materialize(
+    threat_intel_feed
+    | where DestIP matches regex ip_regex
+    | distinct DestIP
+    );
+AADUserRiskEvents
+| where TimeGenerated > ago(timeframe)
+| evaluate ipv4_lookup(malicious_ips, IpAddress, DestIP, return_unmatched=false)
+| extend CIDR = Location.countryOrRegion, UserPrincipalName = tolower(UserPrincipalName)
+| join kind=inner (IdentityLogonEvents
+    | summarize arg_max(TimeGenerated, *) by IPAddress)
+    on $left.IpAddress == $right.IPAddress
+| extend
+    UserAgent = iff(AdditionalInfo[0].Key == 'userAgent', tostring(AdditionalInfo[0].Value), 'None'),
+    CloudService = tostring(AdditionalFields.['ARG.CLOUD_SERVICE']),
+    CIDR = iff(IpAddress in(tor_nodes), strcat(CIDR, ' | Tor node'), CIDR)
+| project
+    TimeGenerated,
+    UserDisplayName,
+    UserPrincipalName,
+    RiskEventType,
+    RiskDetail,
+    IpAddress,
+    CIDR,
+    ISP,
+    DeviceType,
+    OSPlatform,
+    UserAgent,
+    CloudService,
+    Application,
+    LogonType,
+    ActionType,
+    RiskLevel,
+    RiskState,
+    DetectionTimingType,
+    Source,
+    Location,
+    AdditionalInfo,
+    Type
+| sort by TimeGenerated desc 

@@ -1,0 +1,8 @@
+//This query detects high severity security alerts from MCAS related to failed logins
+SecurityAlert
+| where ProviderName == "MCAS"
+| where AlertSeverity == "High"
+| extend Href_ = tostring(parse_json(ExtendedLinks)[1].Href)
+| extend AccountCustomEntity = CompromisedEntity
+| extend URLCustomEntity = Href_
+| extend FileHashCustomEntity = Description 

@@ -1,0 +1,14 @@
+//This query identifies security events containing IP addresses in the watch list "FocusIP"
+//Useful for quick alerts against specific IPs from CISO requests or ephemeral IP-based threat intel
+SecurityAlert
+| project IPs = tostring(parse_json(ExtendedProperties)["IP Addresses"])
+| extend IPs = split(IPs,",") | mv-expand IPs
+| where isnotempty(IPs) | distinct tostring(IPs) // get only unique IPs
+| union (SecurityAlert // join to Entities IP pool
+| mv-expand parse_json(Entities)
+| project IPs = Entities["Address"]
+| where isnotempty(IPs) | distinct tostring(IPs)) // get only unique IPs
+| order by IPs
+// Lookup events using a Watchlist -- join data for any event that is also
+| lookup kind=inner _GetWatchlist('FocusIP')
+ on $left.IPs == $right.SearchKey 
