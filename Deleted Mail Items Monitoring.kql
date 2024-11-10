@@ -1,0 +1,13 @@
+//This query tracks deleted mail items for specific users
+//Provides details about folder paths and affected email subjects
+OfficeActivity
+| where TimeGenerated > ago(30d)
+| where UserId contains "X@X.X"
+| extend FolderDynamic = todynamic(Folder)
+| extend DestFolderDynamic = todynamic(DestFolder)
+| extend FolderPath = tostring(FolderDynamic["Path"])
+| extend DestFolderPath = tostring(DestFolderDynamic["Path"])
+| extend AffectedItemsDynamic = todynamic(AffectedItems)
+| extend AffectedItemsSubject = tostring(AffectedItemsDynamic[0]["Subject"])
+| extend AffectedItemsParentFolder = tostring(AffectedItemsDynamic[0]["ParentFolder"]["Path"])
+| project TimeGenerated, RecordType, Operation, OfficeWorkload, UserId, ClientProcessName, FolderPath, DestFolderPath, AffectedItemsSubject, AffectedItemsParentFolder, ItemType, EventSource, SourceRelativeUrl, SourceFileName, SourceFileExtension 

@@ -1,0 +1,7 @@
+//This query detects execution of malicious Zoom installer components
+//Specifically looks for rundll32.exe executing maker.dll with 'init' parameter
+//Part of IcedId Loader malware campaign
+DeviceProcessEvents
+| where FileName in ("rundll32.exe")
+| where ProcessCommandLine has_all ("maker.dll", "init")
+| project Timestamp, DeviceName, DeviceId, ReportId, ProcessCommandLine, InitiatingProcessCommandLine 

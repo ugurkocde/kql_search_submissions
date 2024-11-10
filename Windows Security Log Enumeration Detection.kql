@@ -1,0 +1,8 @@
+//This query detects attempts to enumerate Windows Security Logs using wevtutil
+//Part of T1654 - Log Collection technique
+let TimeFrame = 7d;
+DeviceProcessEvents
+| where ActionType contains "ProcessCreated"
+and FileName contains "wevtutil.exe" and ProcessCommandLine contains "enum-logs"
+| project DeviceName, ActionType, FileName, ProcessCommandLine, AccountDomain,
+AccountName, InitiatingProcessAccountUpn, InitiatingProcessCommandLine 

@@ -1,0 +1,7 @@
+//This query checks for gaps in Zscaler Private Access data ingestion
+//Returns results if no logs received in past 2 hours
+//Requires ZPAUserActivity function configuration
+ZPAUserActivity
+| where LogTimestamp > ago(30d)
+| summarize last_log = datetime_diff("second",now(), max(LogTimestamp))
+| where last_log >= 7200 

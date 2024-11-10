@@ -1,0 +1,7 @@
+//This query checks for gaps in Zscaler Internet Access data ingestion
+//Returns results if no logs received in past 2 hours
+//Zero results indicate normal operation
+CommonSecurityLog | where DeviceVendor == "Zscaler" and DeviceProduct == "NSSWeblog"
+| where TimeGenerated > ago(30d)
+| summarize last_log = datetime_diff("second",now(), max(TimeGenerated))
+| where last_log >= 7200 

@@ -1,0 +1,6 @@
+//This query detects attempts to enable Remote Desktop using wmic rdtoggle
+//Common technique in post-intrusion ransomware attacks
+DeviceProcessEvents
+| where FileName in ("wmic.exe")
+| where ProcessCommandLine has_all ("rdtoggle", "SetAllowTSConnections", "1")
+| project Timestamp, DeviceName, DeviceId, ReportId, ProcessCommandLine, InitiatingProcessCommandLine 

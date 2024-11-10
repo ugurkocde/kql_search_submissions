@@ -1,0 +1,14 @@
+//This query monitors Purview Audit searches in your tenant
+//Helps track who is performing searches and what parameters they're using
+//Important for monitoring potential insider threats
+CloudAppEvents
+// | sort by Timestamp asc - For lifecycle of a specific search
+| where ActionType startswith "AuditSearch"
+| extend CreationTime = RawEventData.CreationTime
+| extend Operation = RawEventData.Operation
+| extend SearchJobId = RawEventData.SearchJobId
+// | where SearchJobId = [GUID] - For lifecycle of a specific search
+| extend SearchJobName = RawEventData.SearchJobName
+| extend RecordType = RawEventData.RecordType
+| extend SearchFilters = RawEventData.SearchFilters
+| project CreationTime, RecordType, Operation, SearchJobId, SearchJobName, SearchFilters 

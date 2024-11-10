@@ -1,0 +1,6 @@
+//This query detects Nmap reconnaissance activity from Linux systems
+//Identifies specific nmap commands and their source devices
+DeviceNetworkEvents
+| where InitiatingProcessCommandLine contains "nmap"
+| where InitiatingProcessFolderPath contains "/usr/bin/nmap"
+| project InitiatingProcessCommandLine, DeviceName, DeviceId, Timestamp 

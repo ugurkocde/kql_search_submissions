@@ -1,0 +1,8 @@
+//This query identifies processes matching known malicious file hashes
+//Adjust hash list based on your threat intelligence
+let badHashes = dynamic(["hash1", "hash2", "hash3"]);  // Replace with actual bad hashes
+DeviceProcessEvents
+| where Timestamp between (ago(7d) .. now())
+| where SHA1 in (badHashes)
+| project Timestamp, DeviceName, FileName, SHA1, ProcessCommandLine, InitiatingProcessAccountName
+| sort by Timestamp desc 

@@ -1,0 +1,19 @@
+//This query compares daily data usage with unique users over 14 days
+//Calculates total data usage and average consumption per user
+let UsageData = Usage
+| where TimeGenerated >= ago(14d)
+| where IsBillable == true
+| extend DayBoundary = bin(TimeGenerated - totimespan(3h), 1d) + totimespan(3h)
+| summarize TotalQuantityInGB = sum(Quantity / 1000) by DayBoundary
+| order by DayBoundary asc;
+let SigninData = SigninLogs
+| where TimeGenerated >= ago(14d)
+| extend DayBoundary = bin(TimeGenerated - totimespan(3h), 1d) + totimespan(3h)
+| summarize TotalUniqueUsers = dcount(UserPrincipalName) by DayBoundary
+| order by DayBoundary asc;
+UsageData
+| join kind=inner (SigninData) on DayBoundary
+| extend AverageGBPerUser = round(TotalQuantityInGB / TotalUniqueUsers, 4)
+| extend AverageMBPerUser = round((TotalQuantityInGB * 1000) / TotalUniqueUsers, 0)
+| project DayBoundary, TotalQuantityInGB, TotalUniqueUsers, AverageGBPerUser, AverageMBPerUser
+| order by DayBoundary asc 

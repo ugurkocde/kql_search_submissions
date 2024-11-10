@@ -1,0 +1,6 @@
+//This query detects suspicious commands associated with STOP ransomware
+//Looks for specific command line parameters used to initiate malicious activity
+DeviceProcessEvents
+| where ProcessCommandLine has_any ("--Admin", "--ForNetRes")
+| where ProcessCommandLine has_all ("IsAutoStart", "IsTask")
+| project Timestamp, DeviceName, DeviceId, ReportId, ProcessCommandLine, InitiatingProcessCommandLine 

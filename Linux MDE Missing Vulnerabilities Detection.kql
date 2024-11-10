@@ -1,0 +1,10 @@
+//This query identifies Linux devices with missing MDE vulnerability data
+//Looks for devices with fewer than expected software inventory entries
+DeviceInfo
+| where OSPlatform contains "linux"
+| where OnboardingStatus == "Onboarded"
+| summarize arg_max(Timestamp,*) by DeviceId
+| distinct DeviceId, OSDistribution, OnboardingStatus
+| join kind=leftouter DeviceTvmSoftwareInventory on DeviceId
+| summarize count() by DeviceId, OSPlatform, OSDistribution, OnboardingStatus
+| where count_ < 3 

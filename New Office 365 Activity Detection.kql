@@ -1,0 +1,12 @@
+//This query identifies new or unusual Office 365 operations in last 7 days
+//Compares against 90-day baseline to detect potentially malicious activity
+//MITRE ATT&CK: T1078, T1136, T1027
+OfficeActivity
+| where TimeGenerated > ago(90d) and TimeGenerated < ago(7d)
+| distinct Operation
+| join kind=rightanti (
+    OfficeActivity
+    | where TimeGenerated > ago(7d)
+    | summarize NewOfficeOperations=count()by Operation, OfficeWorkload)
+    on Operation
+| sort by NewOfficeOperations desc 

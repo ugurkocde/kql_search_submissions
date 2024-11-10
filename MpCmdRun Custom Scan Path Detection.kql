@@ -1,0 +1,7 @@
+//This query detects potential abuse of MpCmdRun.exe to discover AV exclusion paths
+//Looks for custom scan paths with wildcard pipe character
+DeviceProcessEvents
+| where FileName == "MpCmdRun.exe"
+| where ProcessCommandLine has "-Scan" and ProcessCommandLine has "-Scantype 3" and ProcessCommandLine contains @"|*"
+| project Timestamp, DeviceName, InitiatingProcessAccountName, ProcessCommandLine
+| order by Timestamp desc 

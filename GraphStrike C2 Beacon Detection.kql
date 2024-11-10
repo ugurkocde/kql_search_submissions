@@ -1,0 +1,13 @@
+//This query detects possible GraphStrike C2 implants
+//Looks for processes connecting to both login.microsoft.com and graph.microsoft.com within 2hrs
+let SuspiciousProcesses = (DeviceNetworkEvents
+| where Timestamp > ago(2h)
+| where RemoteUrl contains "graph.microsoft.com" or RemoteUrl contains "login.microsoft.com"
+| summarize make_set(RemoteUrl) by InitiatingProcessId, InitiatingProcessFileName, DeviceName, DeviceId, bin(Timestamp, 2h)
+| where set_RemoteUrl contains "graph.microsoft.com" and set_RemoteUrl contains "login.microsoft.com");
+DeviceNetworkEvents
+| where Timestamp > ago(2h)
+| where RemoteUrl contains "graph.microsoft.com" or RemoteUrl contains "login.microsoft.com"
+| join kind=innerunique SuspiciousProcesses on InitiatingProcessId, DeviceId, InitiatingProcessFileName
+| invoke FileProfile(InitiatingProcessSHA256, 1000)
+| where not(InitiatingProcessFileName in~ ("chrome.exe", "msedge.exe", "firefox.exe", "Microsoft.AAD.BrokerPlugin.exe") and SignatureState == "SignedValid" and GlobalPrevalence > 500) 

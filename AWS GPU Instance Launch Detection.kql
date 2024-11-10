@@ -1,0 +1,7 @@
+//This query detects creation of GPU-enabled AWS instances
+//Often used for crypto mining operations
+AWSCloudTrail
+| where Timegenerated <= ago(24h)
+| where EventName contains "RunInstances"
+| where tostring(parse_json(RequestParameters).instanceType) has_any ("p5","p4","p3","p2","dl1","trn1","inf2","inf1","g5g","g5","g4dn","g4ad","g3")
+| extend instance= tostring(parse_json(RequestParameters).instanceType) 

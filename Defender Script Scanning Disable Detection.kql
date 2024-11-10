@@ -1,0 +1,9 @@
+//This query detects attempts to disable Microsoft Defender's script scanning functionality
+//Monitors registry modifications to Real-Time Protection settings
+DeviceRegistryEvents 
+| where Timestamp >= ago(7d) 
+| where RegistryKey == "HKEY_LOCAL_MACHINE\\SOFTWARE\\Policies\\Microsoft\\Microsoft Antimalware\\Real-Time Protection" 
+| where RegistryValueName == "DisableScriptScanning" 
+| where RegistryValueType == "Dword" 
+| where RegistryValueData == 1 
+| where IsInitiatingProcessRemoteSession == true 

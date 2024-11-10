@@ -1,0 +1,9 @@
+//This query identifies ISPs with only failed sign-in attempts
+//Helps detect potentially malicious ISPs and associated IPs
+//Configurable threshold for minimum number of failed attempts
+IdentityLogonEvents
+| where Timestamp > ago(30d)
+| project ISP, Location, IPAddress, FailureReason
+| summarize valid = countif(isempty(FailureReason) or FailureReason contains "Success"), failure = countif( isnotempty(FailureReason) and FailureReason !contains "Success"), make_set(IPAddress) by ISP, Location
+| order by failure
+| where valid == 0 and failure > 5 

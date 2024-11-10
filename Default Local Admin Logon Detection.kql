@@ -1,0 +1,24 @@
+//This query identifies logon events for the default local administrator
+//Excludes domain admin accounts using SID filtering
+//Defender XDR
+let DefauldDomainAdministrators = dynamic([
+    "S-1-5-XXXXXXXXXX-XXXXXXXXX-XXXXXXXXXX-500", //Default Domain Administrator SID Domain X
+    "S-1-5-XXXXXXXXXX-XXXXXXXXX-XXXXXXXXXX-500" // Default Domain Administrator SID Domain Y
+    ]);
+DeviceLogonEvents
+| where AccountSid startswith "S-1-5-" and AccountSid endswith "-500"
+| where IsLocalAdmin == true
+| join kind = inner (
+    DeviceInfo
+    | summarize arg_max(Timestamp, *) by DeviceId
+    )
+    on $left.DeviceId == $right.DeviceId
+| where AccountSid !in~(DefauldDomainAdministrators) //Comment this line if you also want to see default domain administrator logins
+| summarize count()
+    by
+    DeviceName,
+    LogonType,
+    AccountDomain,
+    AccountName, 
+    OSPlatform, 
+    MachineGroup 

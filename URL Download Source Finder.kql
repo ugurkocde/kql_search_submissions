@@ -1,0 +1,5 @@
+//This query identifies the source URL for downloaded files
+//Tracks Mark of the Web (MOTW) written events
+DeviceNetworkEvents
+| where EventSimpleName == "MotwWritten"
+| project ComputerName, FileName, HostUrl, ReferrerUrl 

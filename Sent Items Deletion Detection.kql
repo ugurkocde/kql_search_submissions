@@ -1,0 +1,8 @@
+//This query detects deletion of emails from Sent Items folder
+//Helps identify potential attackers trying to cover their tracks after sending malicious emails
+OfficeActivity
+| where Operation in~ ("SoftDelete","MoveToDeletedItems","HardDelete")
+| extend AffectedItemsPath = tostring(parse_json(Folder).Path)
+| project-reorder UserId, ClientIP, UserType, MailboxOwnerUPN, Logon_Type, AffectedItemsPath
+//| where UserId != MailboxOwnerUPN
+| where AffectedItemsPath contains "Sent Items" 

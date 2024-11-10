@@ -1,0 +1,6 @@
+//This query identifies Windows Servers not compliant with domain firewall profile protection
+DeviceTvmSecureConfigurationAssessment
+| where ConfigurationId == "scid-2072" //scid for Domain Profile protection
+| where IsCompliant != "1" //We only want to filter what ISN'T compliant!
+| where OSPlatform contains "WindowsServer" //For our use case, we only care about Servers.
+| project DeviceName 

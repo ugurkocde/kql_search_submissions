@@ -1,0 +1,12 @@
+//This query identifies new Entra ID audit operations in last 7 days vs previous 90 days
+//Helps detect potential security events and anomalous behaviors
+//MITRE ATT&CK: T1078, T1098, T1556
+AuditLogs
+| where TimeGenerated > ago(90d) and TimeGenerated < ago(7d)
+| distinct OperationName
+| join kind=rightanti (
+    AuditLogs
+    | where TimeGenerated > ago(7d)
+    | summarize NewAzureADAuditOperations=count()by OperationName, Category)
+    on OperationName
+| sort by NewAzureADAuditOperations desc 

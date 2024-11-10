@@ -1,0 +1,24 @@
+//This query tracks changes to AD provisioning attributes
+//Compares Workday source data with On-Premises AD target data
+AADProvisioningLogs
+| where TimeGenerated > ago(30d)
+| where array_length(todynamic(ModifiedProperties)) > 1
+| extend SourceIdentity = parse_json(SourceIdentity)
+| extend TargetIdentity = parse_json(TargetIdentity)
+| extend SourceSystem = parse_json(SourceSystem)
+| extend TargetSystem = parse_json(TargetSystem)
+| extend EmployeeId = tostring(SourceIdentity.Id)
+| extend TargetID = tostring(TargetIdentity.Id)
+| where SourceSystem.Name == 'Workday'
+| where TargetSystem.Name == 'On Premises Active Directory'
+| mv-apply mp = parse_json(ModifiedProperties) on
+(
+ where mp.newValue != '' 
+ | extend NewValue = tostring(mp.newValue)
+ | extend Attribute = tostring(mp.displayName)
+  | extend OldValue = parse_json(ProvisioningSteps)[2]["details"][Attribute]
+  | where OldValue != ''
+  | where NewValue != OldValue
+ )
+| project EmployeeId, Attribute, OldValue, NewValue, TargetID
+| order by EmployeeId, Attribute 

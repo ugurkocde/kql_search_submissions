@@ -1,0 +1,7 @@
+//This query detects PowerShell commands used in Fake CAPTCHA Campaign
+//Looks for suspicious encoded commands initiated by explorer.exe
+let sus = dynamic(['http', 'ftp', 'Hidden', 'iex', '-e ', '-en', '-enc', '-enco', '-ec']);
+DeviceRegistryEvents
+| where InitiatingProcessFileName == "explorer.exe"
+| where RegistryValueData has_any (sus) and RegistryValueData contains "powershell"
+| project Timestamp, DeviceName, RegistryValueData, InitiatingProcessAccountName 

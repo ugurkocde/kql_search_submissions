@@ -1,0 +1,6 @@
+//This query detects potential active network reconnaissance attacks using Nmap
+//Monitors for command line usage of nmap tool
+DeviceProcessEvents
+| where Timestamp >= ago (30d)
+| where InitiatingProcessCommandLine contains "cmd" and ProcessCommandLine contains "nmap"
+| project InitiatingProcessCommandLine, ProcessCommandLine, DeviceName, AccountUpn, DeviceId, Timestamp, ReportId 

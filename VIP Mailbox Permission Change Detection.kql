@@ -1,0 +1,20 @@
+//This query monitors mailbox permission changes for VIP users
+//Correlates Office activity with sign-in logs and VIP watchlist
+let OfficeActivityData = OfficeActivity
+    | where Operation == "Add-MailboxPermission"
+    | extend UserValue = tostring(parse_json(Parameters)[1].Value)
+    | project TimeGenerated, UserId, OfficeObjectId, UserValue;
+let SigninLogsData = SigninLogs
+    | where isnotempty(UserPrincipalName)
+    | project UserId, UserPrincipalName;
+let VIPWatchlist = _GetWatchlist('VIPUsersv2')
+    | project UserPrincipal = SearchKey;
+let ActivityWithSigninData = OfficeActivityData
+    | join kind=leftouter (SigninLogsData) on $left.UserValue == $right.UserId
+    | extend FinalUserValue = iff(isnotempty(UserPrincipalName), UserPrincipalName, UserValue)
+    | project TimeGenerated, UserId, OfficeObjectId, FinalUserValue
+    | where not(FinalUserValue matches regex @"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+ActivityWithSigninData
+| join kind=inner (VIPWatchlist) on $left.FinalUserValue == $right.UserPrincipal
+| summarize Count = count() by TimeGenerated, UserId, OfficeObjectId, FinalUserValue
+| project-rename Initiator = UserId, AddedUser = OfficeObjectId, ToUser = FinalUserValue 

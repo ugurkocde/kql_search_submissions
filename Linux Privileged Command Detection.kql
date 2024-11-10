@@ -1,0 +1,7 @@
+//This query detects suspicious privileged escalation commands on Linux servers
+//Monitors syslog for commands like chmod, chown, sudo, etc.
+Syslog
+| where SyslogMessage has_any ("chmod", "chown", "sudo -i", "su", "adduser", "passwd", "deluser")
+| extend User = extract("USER=([^ ]+)", 1, SyslogMessage)
+| extend CommandLine = extract("COMMAND=([^ ]+)", 1, SyslogMessage)
+| summarize EventCount = count() by Computer, User, CommandLine 

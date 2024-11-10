@@ -1,0 +1,15 @@
+//This query detects potential brute force attacks by monitoring failed login attempts
+//Alerts on more than 10 failed attempts within 1 hour from a single IP
+let FailedLogonThreshold = 10;
+let TimeWindow = 1d;
+AADSignInEventsBeta
+| where Timestamp >= ago(TimeWindow)
+| where Application != ""  // Focus on any application
+| where ErrorCode in (50053, 50055, 50126,50002,50006, 50003, 50012,50017,50027,50053,50064,50068,50070,50089, 50131,50155,70000, 81004, 81010, 81011)  // Common error codes for invalid credentials, locked accounts, etc.
+| where IPAddress != ""  // Ensure the sign-in is remote
+| where AccountUpn !endswith "$"  // Exclude service accounts
+| summarize FailedAttempts = count(), StartTime = min(Timestamp), EndTime = max(Timestamp) by AccountUpn, IPAddress, Application, ErrorCode, Timestamp, ReportId, AccountDisplayName, EndpointCall, DeviceName, DeviceTrustType, Browser, ClientAppUsed, AuthenticationRequirement, UserAgent, City, IsExternalUser,IsGuestUser, IsManaged, IsCompliant, LastPasswordChangeTimestamp, State, OSPlatform
+| where FailedAttempts > FailedLogonThreshold
+| extend BruteForceIndicator = "Potential Brute Force Attack"
+| project AccountUpn, IPAddress, Application,ErrorCode,EndpointCall,AccountDisplayName,FailedAttempts, StartTime, EndTime, BruteForceIndicator, Timestamp, ReportId, DeviceName, DeviceTrustType, Browser, ClientAppUsed, AuthenticationRequirement, UserAgent, City, IsExternalUser,IsGuestUser, IsManaged, IsCompliant, LastPasswordChangeTimestamp, State, OSPlatform
+| sort by FailedAttempts desc 

@@ -1,0 +1,8 @@
+//This query detects user clicks on emails before they were zapped by MDO
+//Shows time between click and ZAP action for spam/phish emails
+EmailPostDeliveryEvents
+| where Timestamp >= ago(1h)
+| where ActionType has_any ("Phish ZAP", "Spam ZAP")
+| join kind=inner UrlClickEvents on NetworkMessageId
+| project ClickTime= Timestamp1, ZapTime= Timestamp, ClickHappenedBeforeZapTime=datetime_diff('minute', Timestamp1, Timestamp), RecipientEmailAddress, 
+Reporter= iff((ActionResult in ("UserTriaged")),"Användaren", "Microsoft"), Url 

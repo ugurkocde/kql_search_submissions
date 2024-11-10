@@ -1,0 +1,8 @@
+//This query analyzes domain extensions usage by country
+//Excludes common extensions like .nl and .com
+DeviceNetworkEvents
+| where RemoteUrl !endswith ".nl" and RemoteUrl !endswith ".com"
+| extend DomainExtension = extract(@"\.([a-z]+)(:|/|$)", 1, RemoteUrl)
+| where DomainExtension in ("ru", "be", "fr", "de", "uk", "it", "es", "pt", "se", "no", "fi", "pl", "ch", "at", "cz", "gr", "ro", "bg", "hu", "ua", "sk", "si", "hr", "lt", "lv", "ee", "is", "ie", "tr", "by", "md", "rs", "mk", "me", "ba", "al", "ge", "am", "az", "kg", "kz", "uz", "tj", "tm", "cn", "jp", "kr", "in", "pk", "id", "my", "sg", "ph", "th", "vn", "au", "nz", "za", "eg", "dz", "ma", "ng", "ke", "gh", "za", "bw", "mu", "tn", "ar", "br", "cl", "mx", "pe", "ve", "uy", "py", "bo", "cr", "pa", "sv", "gt", "hn", "ni", "do", "cu", "ht")
+| summarize Count = count() by DomainExtension
+| order by Count desc 

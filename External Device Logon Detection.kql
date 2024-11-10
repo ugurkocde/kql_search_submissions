@@ -1,0 +1,22 @@
+//This query analyzes external device logon attempts based on ASN data
+//Helps identify potentially exposed internet-facing workstations
+let CIDRASN = (externaldata (CIDR:string, CIDRASN:int, CIDRASNName:string)
+['https://firewalliplists.gypthecat.com/lists/kusto/kusto-cidr-asn.csv.zip']
+with (ignoreFirstRecord=true));
+let daterange = ago(7d);
+let ExternalLogonAttempts = DeviceLogonEvents
+| where Timestamp >= daterange
+| where RemoteIPType != "Loopback"
+| summarize count() by RemoteIP
+//Its possible to filter out based on the CIDRASN name if you decided to match the data.
+//Generally its best to filter out the Orgs ISP Provider 
+//| evaluate ipv4_lookup(CIDRASN, RemoteIP, CIDR, return_unmatched=false)
+//| where CIDRASNName !startswith ""
+| distinct RemoteIP;
+DeviceLogonEvents
+| where Timestamp >= daterange
+| where RemoteIP in(ExternalLogonAttempts)
+| extend Remote_GeoLocation = geo_info_from_ip_address(RemoteIP)
+| evaluate ipv4_lookup(CIDRASN, RemoteIP, CIDR, return_unmatched=false)
+| project-reorder Timestamp, DeviceId, DeviceName, LogonType, AccountDomain, AccountName, Protocol, FailureReason, RemoteIP, RemotePort, CIDRASNName, Remote_GeoLocation
+| sort by Timestamp 
