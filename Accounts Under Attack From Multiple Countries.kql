@@ -1,0 +1,15 @@
+//This query identifies accounts that haven't changed their password in over a year and shows all countries attempting to access them
+//It helps demonstrate the security risk of outdated passwords by showing the global attack surface
+//The query also includes (commented out) an option to filter for single-factor authentication cases
+AADSignInEventsBeta
+| where Timestamp > ago(90d)
+| where isnotempty(LastPasswordChangeTimestamp)
+// Calculate the period from today until the last time password changed
+| extend DaysSinceLastPasswordChange = datetime_diff('day', now(), LastPasswordChangeTimestamp)
+// select the cases where the Last Password days is more than 1 year
+| where DaysSinceLastPasswordChange >364
+//create a data_set with all the countries from where are trying to take access to it account
+| summarize CountryList=make_set(Country), count() by AccountUpn, AccountDisplayName, DaysSinceLastPasswordChange, AuthenticationRequirement
+// count the distinct countries
+| extend totalcountries = array_length(CountryList)
+// | where AuthenticationRequirement contains "single" 

@@ -1,0 +1,4 @@
+let IOC = dynamic([""]);
+union CommonSecurityLog,AzureDiagnostics,SigninLogs,AWSCloudTrail
+|where TimeGenerated > ago(7d)
+|where clientIP_s in (IOC) or clientIp_s in (IOC) or IPAddress in (IOC) or SourceIpAddress in (IOC) 
